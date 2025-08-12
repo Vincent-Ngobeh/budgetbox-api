@@ -1,0 +1,81 @@
+@startuml Personal Finance Tracker ERD
+!define PRIMARY_KEY(x) <b><color:red>PK</color></b> x
+!define FOREIGN_KEY(x) <b><color:blue>FK</color></b> x
+!define UNIQUE(x) <b><color:green>UK</color></b> x
+entity "User" as user {
+  PRIMARY_KEY(user_id) : UUID
+  --
+  first_name : VARCHAR(50) NOT NULL
+  last_name : VARCHAR(50) NOT NULL
+  UNIQUE(username) : VARCHAR(30) NOT NULL
+  UNIQUE(email) : VARCHAR(100) NOT NULL
+  password_hash : VARCHAR(255) NOT NULL
+  date_joined : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  last_login : TIMESTAMP
+  is_active : BOOLEAN DEFAULT TRUE
+  updated_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+entity "BankAccount" as bank_account {
+  PRIMARY_KEY(bank_account_id) : UUID
+  FOREIGN_KEY(user_id) : UUID NOT NULL
+  --
+  account_name : VARCHAR(100) NOT NULL
+  account_type : VARCHAR(20) NOT NULL
+  bank_name : VARCHAR(100) NOT NULL
+  account_number_masked : VARCHAR(20) NOT NULL
+  currency : VARCHAR(3) DEFAULT 'GBP'
+  current_balance : DECIMAL(15,2) NOT NULL
+  is_active : BOOLEAN DEFAULT TRUE
+  created_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+entity "Category" as category {
+  PRIMARY_KEY(category_id) : UUID
+  FOREIGN_KEY(user_id) : UUID NOT NULL
+  --
+  category_name : VARCHAR(50) NOT NULL
+  category_type : VARCHAR(20) NOT NULL
+  is_default : BOOLEAN DEFAULT FALSE
+  is_active : BOOLEAN DEFAULT TRUE
+  created_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+entity "Transaction" as transaction {
+  PRIMARY_KEY(transaction_id) : UUID
+  FOREIGN_KEY(user_id) : UUID NOT NULL
+  FOREIGN_KEY(bank_account_id) : UUID NOT NULL
+  FOREIGN_KEY(category_id) : UUID NOT NULL
+  --
+  transaction_description : VARCHAR(255) NOT NULL
+  transaction_type : VARCHAR(20) NOT NULL
+  transaction_amount : DECIMAL(15,2) NOT NULL
+  transaction_date : DATE NOT NULL
+  transaction_note : TEXT
+  reference_number : VARCHAR(100)
+  is_recurring : BOOLEAN DEFAULT FALSE
+  updated_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+entity "Budget" as budget {
+  PRIMARY_KEY(budget_id) : UUID
+  FOREIGN_KEY(user_id) : UUID NOT NULL
+  FOREIGN_KEY(category_id) : UUID NOT NULL
+  --
+  budget_name : VARCHAR(100) NOT NULL
+  budget_amount : DECIMAL(15,2) NOT NULL
+  budget_type : VARCHAR(20) NOT NULL
+  period_type : VARCHAR(20) NOT NULL
+  start_date : DATE NOT NULL
+  end_date : DATE NOT NULL
+  is_active : BOOLEAN DEFAULT TRUE
+  created_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at : TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+}
+' Relationships with cardinality
+user ||--o{ bank_account : "owns"
+user ||--o{ category : "creates"
+user ||--o{ transaction : "makes"
+user ||--o{ budget : "sets"
+bank_account ||--o{ transaction : "records"
+category ||--o{ transaction : "categorizes"
+category ||--o{ budget : "budgets_for"
+@enduml
