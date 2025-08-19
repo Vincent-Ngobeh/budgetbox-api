@@ -20,7 +20,7 @@ class BankAccount(models.Model):
     bank_account_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)  
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='bank_accounts')
+        User, on_delete=models.CASCADE, related_name='user_bank_accounts')
     account_name = models.CharField(max_length=100)
     account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
     bank_name = models.CharField(max_length=100)
@@ -48,7 +48,7 @@ class Category(models.Model):
     category_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='categories')
+        User, on_delete=models.CASCADE, related_name='user_categories')
     category_name = models.CharField(max_length=50)
     category_type = models.CharField(max_length=20, choices=CATEGORY_TYPES)
     is_default = models.BooleanField(default=False)
@@ -73,11 +73,11 @@ class Transaction(models.Model):
     transaction_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='transactions')
+        User, on_delete=models.CASCADE, related_name='user_transactions')
     bank_account = models.ForeignKey(
-        BankAccount, on_delete=models.CASCADE, related_name='transactions')
+        BankAccount, on_delete=models.CASCADE, related_name='bank_account_transactions')
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name='transactions')
+        Category, on_delete=models.CASCADE, related_name='category_transactions')
     transaction_description = models.CharField(max_length=255)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
     transaction_amount = models.DecimalField(max_digits=15, decimal_places=2)
@@ -112,9 +112,9 @@ class Budget(models.Model):
     budget_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='budgets')
+        User, on_delete=models.CASCADE, related_name='user_budgets')
     category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name='budgets')
+        Category, on_delete=models.CASCADE, related_name='category_budgets')
     budget_name = models.CharField(max_length=100)
     budget_amount = models.DecimalField(max_digits=15, decimal_places=2)
     budget_type = models.CharField(max_length=20, choices=BUDGET_TYPES)
