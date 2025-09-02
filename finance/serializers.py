@@ -1,10 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.db import transaction as db_transaction
+from django.db.models import Sum, Q
 from django.core.cache import cache
 from decimal import Decimal
 from datetime import date, timedelta
-
 from .models import BankAccount, Category, Transaction, Budget
 
 
@@ -449,7 +449,7 @@ class BudgetSerializer(serializers.ModelSerializer):
             transaction_date__gte=obj.start_date,
             transaction_date__lte=obj.end_date
         ).aggregate(
-            total=serializers.Sum('transaction_amount')
+            total=Sum('transaction_amount')
         )
         return abs(transactions['total'] or Decimal('0'))
 
