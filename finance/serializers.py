@@ -327,24 +327,31 @@ class TransactionSerializer(serializers.ModelSerializer):
         bank_account = attrs.get('bank_account')
         transaction_amount = attrs.get('transaction_amount')
 
+        # Validate category type matches transaction type
         if category and transaction_type:
             if transaction_type != 'transfer' and category.category_type != transaction_type:
                 raise serializers.ValidationError({
                     'transaction_type': f'Transaction type must match category type ({category.category_type}).'
                 })
 
-        if bank_account and transaction_amount:
-            if bank_account.account_type != 'credit' and transaction_type == 'expense':
+        # Convert transaction amounts to correct sign
+        if transaction_type == 'expense' and transaction_amount > 0:
+            attrs['transaction_amount'] = -abs(transaction_amount)
+            # Update local variable
+            transaction_amount = attrs['transaction_amount']
+        elif transaction_type == 'income' and transaction_amount < 0:
+            attrs['transaction_amount'] = abs(transaction_amount)
+            # Update local variable
+            transaction_amount = attrs['transaction_amount']
+
+        # Validate insufficient funds with correctly signed amount
+        if bank_account and transaction_type == 'expense':
+            if bank_account.account_type != 'credit':
                 expected_balance = bank_account.current_balance + transaction_amount
                 if expected_balance < Decimal('0'):
                     raise serializers.ValidationError({
                         'transaction_amount': 'Insufficient funds. This transaction would result in a negative balance.'
                     })
-
-        if transaction_type == 'expense' and transaction_amount > 0:
-            attrs['transaction_amount'] = -abs(transaction_amount)
-        elif transaction_type == 'income' and transaction_amount < 0:
-            attrs['transaction_amount'] = abs(transaction_amount)
 
         return attrs
 
