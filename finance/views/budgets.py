@@ -419,6 +419,67 @@ class BudgetViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @action(detail=True, methods=['post'])
+    def deactivate(self, request, pk=None):
+        """Deactivate a budget."""
+        budget = self.get_object()
+
+        if not budget.is_active:
+            return Response(
+                {'error': 'Budget is already inactive'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        budget.is_active = False
+        budget.save(update_fields=['is_active', 'updated_at'])
+
+        return Response({
+            'message': 'Budget deactivated successfully',
+            'budget': {
+                'id': str(budget.budget_id),
+                'name': budget.budget_name,
+                'is_active': budget.is_active
+            }
+        })
+
+    @action(detail=True, methods=['post'])
+    def reactivate(self, request, pk=None):
+        """Reactivate a previously deactivated budget."""
+        budget = self.get_object()
+
+        if budget.is_active:
+            return Response(
+                {'error': 'Budget is already active'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check for overlapping active budgets
+        overlapping = Budget.objects.filter(
+            user=request.user,
+            category=budget.category,
+            is_active=True,
+            start_date__lte=budget.end_date,
+            end_date__gte=budget.start_date
+        ).exists()
+
+        if overlapping:
+            return Response(
+                {'error': 'Cannot reactivate: another budget overlaps this period'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        budget.is_active = True
+        budget.save(update_fields=['is_active', 'updated_at'])
+
+        return Response({
+            'message': 'Budget reactivated successfully',
+            'budget': {
+                'id': str(budget.budget_id),
+                'name': budget.budget_name,
+                'is_active': budget.is_active
+            }
+        })
+
     @action(detail=False, methods=['post'])
     @db_transaction.atomic
     def bulk_create(self, request):
