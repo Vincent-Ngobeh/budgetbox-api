@@ -154,8 +154,8 @@ class BudgetViewSet(viewsets.ModelViewSet):
             },
             'spending': {
                 'total_spent': float(total_spent),
-                'remaining': float(max(budget.budget_amount - total_spent, 0)),
-                'percentage_used': float(min((total_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0, 100)),
+                'remaining': float(budget.budget_amount - total_spent),
+                'percentage_used': float((total_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0),
                 'expected_spend': float(expected_spend),
                 'pace_percentage': float(pace_percentage),
                 'daily_allowance': float(daily_allowance)
@@ -405,7 +405,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
             budget_name=f"{original.budget_name} (Cloned)",
             budget_amount=Decimal(
                 str(new_amount)) if new_amount else original.budget_amount,
-            budget_type=original.budget_type,
             period_type=original.period_type,
             start_date=start_date,
             end_date=end_date,
@@ -421,7 +420,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
-        """Deactivate a budget."""
         budget = self.get_object()
 
         if not budget.is_active:
@@ -444,7 +442,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reactivate(self, request, pk=None):
-        """Reactivate a previously deactivated budget."""
         budget = self.get_object()
 
         if budget.is_active:
@@ -453,7 +450,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Check for overlapping active budgets
         overlapping = Budget.objects.filter(
             user=request.user,
             category=budget.category,
@@ -552,7 +548,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
                     category=category,
                     budget_name=f"Monthly {budget_name} Budget",
                     budget_amount=Decimal(str(amount)),
-                    budget_type='monthly',
                     period_type='monthly',
                     start_date=start_date,
                     end_date=end_date,

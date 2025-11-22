@@ -193,14 +193,6 @@ class BankAccountSerializer(serializers.ModelSerializer):
         if value is None:
             raise serializers.ValidationError("Current balance is required.")
 
-        if value < Decimal('-10000'):
-            raise serializers.ValidationError(
-                "Overdraft limit cannot exceed £10,000.")
-
-        if value > Decimal('9999999.99'):
-            raise serializers.ValidationError(
-                "Balance exceeds maximum allowed value.")
-
         return value
 
     def validate(self, attrs):
@@ -208,8 +200,13 @@ class BankAccountSerializer(serializers.ModelSerializer):
             'account_type', self.instance.account_type if self.instance else None)
         current_balance = attrs.get(
             'current_balance', self.instance.current_balance if self.instance else None)
+        currency = attrs.get(
+            'currency', self.instance.currency if self.instance else 'GBP')
 
         if account_type and current_balance is not None:
+            currency_symbols = {'GBP': '£', 'USD': '$', 'EUR': '€'}
+            symbol = currency_symbols.get(currency, currency)
+
             if account_type != 'credit' and current_balance < 0:
                 raise serializers.ValidationError({
                     'current_balance': 'Only credit accounts can have negative balance.'
@@ -218,6 +215,16 @@ class BankAccountSerializer(serializers.ModelSerializer):
             if account_type == 'credit' and current_balance > 0:
                 raise serializers.ValidationError({
                     'current_balance': 'Credit accounts should have zero or negative balance.'
+                })
+
+            if current_balance < Decimal('-10000'):
+                raise serializers.ValidationError({
+                    'current_balance': f'Overdraft limit cannot exceed {symbol}10,000.'
+                })
+
+            if current_balance > Decimal('9999999.99'):
+                raise serializers.ValidationError({
+                    'current_balance': f'Balance cannot exceed {symbol}9,999,999.99.'
                 })
 
         return attrs
@@ -327,24 +334,19 @@ class TransactionSerializer(serializers.ModelSerializer):
         bank_account = attrs.get('bank_account')
         transaction_amount = attrs.get('transaction_amount')
 
-        # Validate category type matches transaction type
         if category and transaction_type:
             if transaction_type != 'transfer' and category.category_type != transaction_type:
                 raise serializers.ValidationError({
                     'transaction_type': f'Transaction type must match category type ({category.category_type}).'
                 })
 
-        # Convert transaction amounts to correct sign
         if transaction_type == 'expense' and transaction_amount > 0:
             attrs['transaction_amount'] = -abs(transaction_amount)
-            # Update local variable
             transaction_amount = attrs['transaction_amount']
         elif transaction_type == 'income' and transaction_amount < 0:
             attrs['transaction_amount'] = abs(transaction_amount)
-            # Update local variable
             transaction_amount = attrs['transaction_amount']
 
-        # Validate insufficient funds with correctly signed amount
         if bank_account and transaction_type == 'expense':
             if bank_account.account_type != 'credit':
                 expected_balance = bank_account.current_balance + transaction_amount
@@ -426,8 +428,8 @@ class BudgetSerializer(serializers.ModelSerializer):
         model = Budget
         fields = [
             'budget_id', 'user', 'category', 'category_name',
-            'budget_name', 'budget_amount', 'budget_type',
-            'period_type', 'start_date', 'end_date',
+            'budget_name', 'budget_amount', 'period_type',
+            'start_date', 'end_date',
             'spent_amount', 'remaining_amount', 'percentage_used',
             'days_remaining', 'is_active', 'created_at', 'updated_at'
         ]
@@ -463,14 +465,14 @@ class BudgetSerializer(serializers.ModelSerializer):
 
     def get_remaining_amount(self, obj):
         spent = self.get_spent_amount(obj)
-        return max(obj.budget_amount - spent, Decimal('0'))
+        return obj.budget_amount - spent
 
     def get_percentage_used(self, obj):
         if obj.budget_amount == 0:
             return "0.00"
         spent = self.get_spent_amount(obj)
         percentage = (spent / obj.budget_amount) * 100
-        return f"{min(percentage, 100):.2f}"
+        return f"{percentage:.2f}"
 
     def validate_budget_name(self, value):
         if not value or not value.strip():

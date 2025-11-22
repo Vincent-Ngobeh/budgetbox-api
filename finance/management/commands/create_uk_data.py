@@ -391,7 +391,6 @@ class Command(BaseCommand):
                     category=category,
                     budget_name=budget_name,
                     budget_amount=Decimal(str(amount)),
-                    budget_type='monthly',
                     period_type='monthly',
                     start_date=date.today().replace(day=1),
                     end_date=(date.today().replace(
