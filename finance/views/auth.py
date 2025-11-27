@@ -26,13 +26,10 @@ def register_view(request):
     serializer = UserSerializer(data=request.data)
 
     if serializer.is_valid():
-        # Create user
         user = serializer.save()
 
-        # Create token for the user
         token, created = Token.objects.get_or_create(user=user)
 
-        # Create default categories for new user
         from finance.models import Category
         default_categories = [
             ('Salary', 'income'),
@@ -90,7 +87,6 @@ def login_view(request):
             'error': 'Username and password are required'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Try to authenticate
     from django.contrib.auth import authenticate
     user = authenticate(username=username, password=password)
 
@@ -100,15 +96,12 @@ def login_view(request):
                 'error': 'User account is disabled'
             }, status=status.HTTP_403_FORBIDDEN)
 
-        # Get or create token
         token, created = Token.objects.get_or_create(user=user)
 
-        # Update last login
         from django.utils import timezone
         user.last_login = timezone.now()
         user.save(update_fields=['last_login'])
 
-        # Get user's account summary
         from finance.models import BankAccount, Category, Transaction, Budget
 
         accounts_count = BankAccount.objects.filter(
@@ -154,7 +147,6 @@ def logout_view(request):
     Logout user by deleting their token
     """
     try:
-        # Delete the user's token
         request.user.auth_token.delete()
 
         return Response({
@@ -174,12 +166,10 @@ def profile_view(request):
     """
     serializer = UserSerializer(request.user, context={'request': request})
 
-    # Get additional stats
     from finance.models import BankAccount, Transaction
     from django.db.models import Sum
     from decimal import Decimal
 
-    # Calculate net worth
     net_worth = BankAccount.objects.filter(
         user=request.user,
         is_active=True
@@ -187,7 +177,6 @@ def profile_view(request):
         total=Sum('current_balance')
     )['total'] or Decimal('0')
 
-    # Get this month's income/expenses
     from django.utils import timezone
     from datetime import timedelta
 
@@ -223,13 +212,20 @@ def update_profile_view(request):
     {
         "email": "newemail@example.com",
         "first_name": "John",
-        "last_name": "Smith",
-        "password": "newpassword123"
+        "last_name": "Smith"
     }
+
+    Note: For password changes, use the /api/auth/change-password/ endpoint
     """
+    data = request.data.copy()
+    if 'password' in data:
+        return Response({
+            'error': 'Password changes must be done through /api/auth/change-password/ endpoint'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
     serializer = UserSerializer(
         request.user,
-        data=request.data,
+        data=data,
         partial=True,
         context={'request': request}
     )
@@ -242,3 +238,70 @@ def update_profile_view(request):
         })
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password_view(request):
+    """
+    Change user password
+
+    Request body:
+    {
+        "current_password": "oldpassword123",
+        "new_password": "newpassword456"
+    }
+    """
+    current_password = request.data.get('current_password')
+    new_password = request.data.get('new_password')
+
+    if not current_password:
+        return Response({
+            'error': 'Current password is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not new_password:
+        return Response({
+            'error': 'New password is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if not request.user.check_password(current_password):
+        return Response({
+            'error': 'Current password is incorrect'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(new_password) < 8:
+        return Response({
+            'error': 'New password must be at least 8 characters long'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    if current_password == new_password:
+        return Response({
+            'error': 'New password must be different from current password'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError
+
+    try:
+        validate_password(new_password, user=request.user)
+    except ValidationError as e:
+        return Response({
+            'error': 'Password validation failed',
+            'details': list(e.messages)
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    request.user.set_password(new_password)
+    request.user.save()
+
+    try:
+        request.user.auth_token.delete()
+    except:
+        pass
+
+    new_token, created = Token.objects.get_or_create(user=request.user)
+
+    return Response({
+        'message': 'Password changed successfully',
+        'token': new_token.key
+    }, status=status.HTTP_200_OK)

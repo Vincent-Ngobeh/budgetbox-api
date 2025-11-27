@@ -9,7 +9,8 @@ from finance.views.auth import (
     login_view,
     logout_view,
     profile_view,
-    update_profile_view
+    update_profile_view,
+    change_password_view
 )
 
 
@@ -26,6 +27,9 @@ def api_root(request):
                 'login': '/api/auth/login/',
                 'logout': '/api/auth/logout/',
                 'register': '/api/auth/register/',
+                'profile': '/api/auth/profile/',
+                'update_profile': '/api/auth/profile/update/',
+                'change_password': '/api/auth/change-password/',
             },
             'finance': {
                 'accounts': '/api/accounts/',
@@ -57,7 +61,8 @@ urlpatterns = [
     path('api/auth/profile/', profile_view, name='api-profile'),
     path('api/auth/profile/update/',
          update_profile_view, name='api-profile-update'),
-
+    path('api/auth/change-password/',
+         change_password_view, name='api-change-password'),
     # Alternative token auth endpoint (DRF built-in)
     path('api/auth/token/', obtain_auth_token, name='api-token-auth'),
 
