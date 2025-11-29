@@ -191,8 +191,12 @@ Authorization: Token your-token-here
 # Add your frontend URLs to CORS_ALLOWED_ORIGINS environment variable (comma-separated)
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000'
+    default='http://localhost:3000,http://127.0.0.1:3000,https://budgetbox-frontend.vercel.app'
 ).split(',')
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://budgetbox-frontend(-[a-z0-9]+)?(-vincents-projects-c9a9804b)?\.vercel\.app$",
+]
 
 CORS_ALLOW_CREDENTIALS = True
 
