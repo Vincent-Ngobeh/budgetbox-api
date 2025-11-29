@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.authtoken.views import obtain_auth_token
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from django.db.models import Q
 from drf_spectacular.views import (
@@ -20,6 +21,7 @@ from finance.views.auth import (
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def api_root(request):
     """
     API root endpoint - provides overview of available endpoints
@@ -62,11 +64,13 @@ urlpatterns = [
     path('', api_root, name='api-root'),
     path('api/', api_root, name='api-root-alt'),
 
-    # API Documentation
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'),
+    # API Documentation (public - no auth required)
+    path('api/schema/',
+         SpectacularAPIView.as_view(permission_classes=[AllowAny]), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema', permission_classes=[AllowAny]),
          name='swagger-ui'),
-    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema',
+         permission_classes=[AllowAny]), name='redoc'),
 
     # Authentication endpoints
     path('api/auth/login/', login_view, name='api-login'),

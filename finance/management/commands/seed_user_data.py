@@ -659,17 +659,17 @@ class Command(BaseCommand):
         self.stdout.write('=' * 60)
         self.stdout.write(f'''
 # Login
-curl -X POST http://localhost:8000/api/auth/login/ \\
+curl -X POST https://budgetbox-api.onrender.com/api/auth/login/ \
   -H "Content-Type: application/json" \\
   -d '{{"username": "{user.username}", "password": "{password}"}}'
 
 # Change password
-curl -X POST http://localhost:8000/api/auth/change-password/ \\
+curl -X POST https://budgetbox-api.onrender.com/api/auth/change-password/ \\
   -H "Authorization: Token {token.key}" \\
   -H "Content-Type: application/json" \\
   -d '{{"current_password": "{password}", "new_password": "newpassword456"}}'
 
 # Get profile
-curl http://localhost:8000/api/auth/profile/ \\
+curl https://budgetbox-api.onrender.com/api/auth/profile/ \\
   -H "Authorization: Token {token.key}"
 ''')
