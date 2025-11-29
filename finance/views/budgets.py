@@ -1,4 +1,4 @@
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,12 +9,91 @@ from django.utils import timezone
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 from collections import defaultdict
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse
 
 from finance.models import Budget, Transaction, Category
 from finance.serializers import BudgetSerializer
 
 
+# Request serializers for documentation
+class CloneBudgetRequestSerializer(serializers.Serializer):
+    period_shift = serializers.ChoiceField(
+        choices=['next', 'custom'],
+        default='next',
+        help_text="'next' for next period, 'custom' for custom dates"
+    )
+    budget_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        help_text="New budget amount (optional)"
+    )
+    start_date = serializers.DateField(
+        required=False, help_text="Start date for custom period")
+    end_date = serializers.DateField(
+        required=False, help_text="End date for custom period")
+
+
+class BulkCreateBudgetRequestSerializer(serializers.Serializer):
+    template = serializers.ChoiceField(
+        choices=['essential', 'comprehensive'],
+        help_text="Budget template to use"
+    )
+    start_date = serializers.DateField(
+        required=False, help_text="Start date (default: first of current month)")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Budgets'],
+        summary='List budgets',
+        description='Retrieve all budgets for the authenticated user with spending calculations.',
+        parameters=[
+            OpenApiParameter(
+                name='is_active', description='Filter by active status', required=False, type=bool),
+            OpenApiParameter(
+                name='period_type', description='Filter by period type (weekly, monthly, quarterly, yearly)', required=False, type=str),
+            OpenApiParameter(
+                name='category', description='Filter by category ID', required=False, type=str),
+            OpenApiParameter(
+                name='current', description='Filter to only current budgets', required=False, type=bool),
+            OpenApiParameter(
+                name='exceeded', description='Filter to only exceeded budgets', required=False, type=bool),
+        ]
+    ),
+    create=extend_schema(
+        tags=['Budgets'],
+        summary='Create budget',
+        description='Create a new spending budget for an expense category.'
+    ),
+    retrieve=extend_schema(
+        tags=['Budgets'],
+        summary='Get budget',
+        description='Retrieve a specific budget by ID with spending calculations.'
+    ),
+    update=extend_schema(
+        tags=['Budgets'],
+        summary='Update budget',
+        description='Update all fields of a budget.'
+    ),
+    partial_update=extend_schema(
+        tags=['Budgets'],
+        summary='Partially update budget',
+        description='Update specific fields of a budget.'
+    ),
+    destroy=extend_schema(
+        tags=['Budgets'],
+        summary='Delete budget',
+        description='Delete a budget permanently.'
+    ),
+)
 class BudgetViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing spending budgets.
+
+    Provides CRUD operations plus custom actions for progress tracking,
+    overview, recommendations, cloning, and bulk creation.
+    """
     serializer_class = BudgetSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter]
@@ -81,6 +160,11 @@ class BudgetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Get budget progress',
+        description='Get detailed progress tracking for a budget including spending pace, daily breakdown, and recent transactions.',
+    )
     @action(detail=True, methods=['get'])
     def progress(self, request, pk=None):
         budget = self.get_object()
@@ -179,6 +263,11 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
         return Response(response_data)
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Get budgets overview',
+        description='Get a comprehensive overview of all active budgets with summary statistics, upcoming, and expiring budgets.',
+    )
     @action(detail=False, methods=['get'])
     def overview(self, request):
         today = timezone.now().date()
@@ -264,6 +353,15 @@ class BudgetViewSet(viewsets.ModelViewSet):
             ]
         })
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Get budget recommendations',
+        description='Get smart recommendations for new budgets, adjustments needed, and savings opportunities based on spending history.',
+        parameters=[
+            OpenApiParameter(
+                name='months', description='Number of months to analyze (default: 3)', required=False, type=int),
+        ]
+    )
     @action(detail=False, methods=['get'])
     def recommendations(self, request):
         lookback_months = int(request.query_params.get('months', 3))
@@ -344,6 +442,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
 
         return Response(recommendations)
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Clone budget',
+        description='Create a copy of an existing budget for the next period or custom dates.',
+        request=CloneBudgetRequestSerializer,
+        responses={
+            201: BudgetSerializer,
+            400: OpenApiResponse(description='Validation error or overlapping budget'),
+        }
+    )
     @action(detail=True, methods=['post'])
     @db_transaction.atomic
     def clone(self, request, pk=None):
@@ -418,6 +526,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Deactivate budget',
+        description='Deactivate a budget without deleting it.',
+        request=None,
+        responses={
+            200: OpenApiResponse(description='Budget deactivated successfully'),
+            400: OpenApiResponse(description='Budget is already inactive'),
+        }
+    )
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         budget = self.get_object()
@@ -440,6 +558,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Reactivate budget',
+        description='Reactivate a previously deactivated budget. Will fail if another active budget overlaps.',
+        request=None,
+        responses={
+            200: OpenApiResponse(description='Budget reactivated successfully'),
+            400: OpenApiResponse(description='Budget is already active or overlaps with another'),
+        }
+    )
     @action(detail=True, methods=['post'])
     def reactivate(self, request, pk=None):
         budget = self.get_object()
@@ -476,6 +604,16 @@ class BudgetViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        tags=['Budgets'],
+        summary='Bulk create budgets',
+        description='Create multiple budgets from a predefined template (essential or comprehensive).',
+        request=BulkCreateBudgetRequestSerializer,
+        responses={
+            200: OpenApiResponse(description='Budgets created successfully'),
+            400: OpenApiResponse(description='Invalid template or date format'),
+        }
+    )
     @action(detail=False, methods=['post'])
     @db_transaction.atomic
     def bulk_create(self, request):

@@ -1,28 +1,78 @@
 from django.contrib.auth.models import User
 from django.db.models import Q
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 from finance.serializers import UserSerializer
 
 
+# Request/Response serializers for documentation
+class RegisterRequestSerializer(serializers.Serializer):
+    username = serializers.CharField(
+        help_text="Unique username for the account")
+    email = serializers.EmailField(help_text="User's email address")
+    password = serializers.CharField(help_text="Password (min 8 characters)")
+    first_name = serializers.CharField(help_text="User's first name")
+    last_name = serializers.CharField(help_text="User's last name")
+
+
+class LoginRequestSerializer(serializers.Serializer):
+    username = serializers.CharField(help_text="Username")
+    password = serializers.CharField(help_text="Password")
+
+
+class ChangePasswordRequestSerializer(serializers.Serializer):
+    current_password = serializers.CharField(help_text="Current password")
+    new_password = serializers.CharField(
+        help_text="New password (min 8 characters)")
+
+
+class UpdateProfileRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        required=False, help_text="New email address")
+    first_name = serializers.CharField(
+        required=False, help_text="New first name")
+    last_name = serializers.CharField(
+        required=False, help_text="New last name")
+
+
+@extend_schema(
+    tags=['Authentication'],
+    summary='Register a new user',
+    description='Create a new user account. Default categories will be created automatically.',
+    request=RegisterRequestSerializer,
+    responses={
+        201: OpenApiResponse(
+            description='User created successfully',
+            response=inline_serializer(
+                name='RegisterResponse',
+                fields={
+                    'message': serializers.CharField(),
+                    'user': inline_serializer(
+                        name='RegisterUserData',
+                        fields={
+                            'id': serializers.IntegerField(),
+                            'username': serializers.CharField(),
+                            'email': serializers.EmailField(),
+                            'first_name': serializers.CharField(),
+                            'last_name': serializers.CharField(),
+                        }
+                    ),
+                    'token': serializers.CharField(),
+                    'categories_created': serializers.IntegerField(),
+                }
+            )
+        ),
+        400: OpenApiResponse(description='Validation error'),
+    }
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_view(request):
-    """
-    Register a new user
-
-    Request body:
-    {
-        "username": "john_doe",
-        "email": "john@example.com",
-        "password": "securepass123",
-        "first_name": "John",
-        "last_name": "Doe"
-    }
-    """
+    """Register a new user and create default categories."""
     serializer = UserSerializer(data=request.data)
 
     if serializer.is_valid():
@@ -67,18 +117,51 @@ def register_view(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Login user',
+    description='Authenticate user and return an access token along with account summary.',
+    request=LoginRequestSerializer,
+    responses={
+        200: OpenApiResponse(
+            description='Login successful',
+            response=inline_serializer(
+                name='LoginResponse',
+                fields={
+                    'message': serializers.CharField(),
+                    'token': serializers.CharField(),
+                    'user': inline_serializer(
+                        name='LoginUserData',
+                        fields={
+                            'id': serializers.IntegerField(),
+                            'username': serializers.CharField(),
+                            'email': serializers.EmailField(),
+                            'first_name': serializers.CharField(),
+                            'last_name': serializers.CharField(),
+                            'last_login': serializers.DateTimeField(),
+                        }
+                    ),
+                    'summary': inline_serializer(
+                        name='LoginSummary',
+                        fields={
+                            'accounts': serializers.IntegerField(),
+                            'categories': serializers.IntegerField(),
+                            'transactions': serializers.IntegerField(),
+                            'active_budgets': serializers.IntegerField(),
+                        }
+                    ),
+                }
+            )
+        ),
+        400: OpenApiResponse(description='Username and password are required'),
+        401: OpenApiResponse(description='Invalid credentials'),
+        403: OpenApiResponse(description='User account is disabled'),
+    }
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
-    """
-    Login user and return token
-
-    Request body:
-    {
-        "username": "john_doe",
-        "password": "securepass123"
-    }
-    """
+    """Authenticate user and return access token."""
     username = request.data.get('username')
     password = request.data.get('password')
 
@@ -140,12 +223,26 @@ def login_view(request):
     }, status=status.HTTP_401_UNAUTHORIZED)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Logout user',
+    description='Logout the current user by deleting their authentication token.',
+    request=None,
+    responses={
+        200: OpenApiResponse(
+            description='Logout successful',
+            response=inline_serializer(
+                name='LogoutResponse',
+                fields={'message': serializers.CharField()}
+            )
+        ),
+        500: OpenApiResponse(description='Server error during logout'),
+    }
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
-    """
-    Logout user by deleting their token
-    """
+    """Logout user by deleting their token."""
     try:
         request.user.auth_token.delete()
 
@@ -158,12 +255,43 @@ def logout_view(request):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Get user profile',
+    description='Retrieve the current user profile with financial summary including net worth and monthly statistics.',
+    responses={
+        200: OpenApiResponse(
+            description='Profile retrieved successfully',
+            response=inline_serializer(
+                name='ProfileResponse',
+                fields={
+                    'id': serializers.IntegerField(),
+                    'username': serializers.CharField(),
+                    'email': serializers.EmailField(),
+                    'first_name': serializers.CharField(),
+                    'last_name': serializers.CharField(),
+                    'date_joined': serializers.DateTimeField(),
+                    'last_login': serializers.DateTimeField(),
+                    'total_accounts': serializers.IntegerField(),
+                    'total_categories': serializers.IntegerField(),
+                    'financial_summary': inline_serializer(
+                        name='FinancialSummary',
+                        fields={
+                            'net_worth': serializers.FloatField(),
+                            'monthly_income': serializers.FloatField(),
+                            'monthly_expenses': serializers.FloatField(),
+                            'monthly_savings': serializers.FloatField(),
+                        }
+                    ),
+                }
+            )
+        ),
+    }
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def profile_view(request):
-    """
-    Get current user's profile
-    """
+    """Get current user's profile with financial summary."""
     serializer = UserSerializer(request.user, context={'request': request})
 
     from finance.models import BankAccount, Transaction
@@ -202,21 +330,29 @@ def profile_view(request):
     return Response(response_data)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Update user profile',
+    description='Update the current user profile. For password changes, use the change-password endpoint.',
+    request=UpdateProfileRequestSerializer,
+    responses={
+        200: OpenApiResponse(
+            description='Profile updated successfully',
+            response=inline_serializer(
+                name='UpdateProfileResponse',
+                fields={
+                    'message': serializers.CharField(),
+                    'user': UserSerializer(),
+                }
+            )
+        ),
+        400: OpenApiResponse(description='Validation error or password change attempted'),
+    }
+)
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_profile_view(request):
-    """
-    Update current user's profile
-
-    Request body (all fields optional):
-    {
-        "email": "newemail@example.com",
-        "first_name": "John",
-        "last_name": "Smith"
-    }
-
-    Note: For password changes, use the /api/auth/change-password/ endpoint
-    """
+    """Update current user's profile."""
     data = request.data.copy()
     if 'password' in data:
         return Response({
@@ -240,18 +376,29 @@ def update_profile_view(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    tags=['Authentication'],
+    summary='Change password',
+    description='Change the current user password. The old token will be invalidated and a new one returned.',
+    request=ChangePasswordRequestSerializer,
+    responses={
+        200: OpenApiResponse(
+            description='Password changed successfully',
+            response=inline_serializer(
+                name='ChangePasswordResponse',
+                fields={
+                    'message': serializers.CharField(),
+                    'token': serializers.CharField(help_text='New authentication token'),
+                }
+            )
+        ),
+        400: OpenApiResponse(description='Validation error or incorrect current password'),
+    }
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password_view(request):
-    """
-    Change user password
-
-    Request body:
-    {
-        "current_password": "oldpassword123",
-        "new_password": "newpassword456"
-    }
-    """
+    """Change user password and return new token."""
     current_password = request.data.get('current_password')
     new_password = request.data.get('new_password')
 

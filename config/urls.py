@@ -4,6 +4,11 @@ from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Q
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from finance.views.auth import (
     register_view,
     login_view,
@@ -42,6 +47,9 @@ def api_root(request):
         'documentation': {
             'api_browser': '/api/',
             'schema': '/api/schema/',
+            'swagger_ui': '/api/docs/',
+            'redoc': '/api/redoc/',
+            'openapi_schema': '/api/schema/',
         }
     })
 
@@ -53,6 +61,12 @@ urlpatterns = [
     # API root
     path('', api_root, name='api-root'),
     path('api/', api_root, name='api-root-alt'),
+
+    # API Documentation
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'),
+         name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Authentication endpoints
     path('api/auth/login/', login_view, name='api-login'),

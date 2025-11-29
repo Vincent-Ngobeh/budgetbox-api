@@ -3,10 +3,11 @@ from decimal import Decimal
 from django.db.models import Sum, Q, Count, F
 from django.db import transaction as db_transaction
 from django.utils import timezone
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, inline_serializer
 from finance.models import BankAccount, Transaction
 from finance.serializers import (
     BankAccountSerializer,
@@ -15,7 +16,65 @@ from finance.serializers import (
 )
 
 
+# Request serializers for documentation
+class TransferRequestSerializer(serializers.Serializer):
+    target_account_id = serializers.UUIDField(
+        help_text="ID of the target account")
+    amount = serializers.DecimalField(
+        max_digits=10, decimal_places=2, help_text="Amount to transfer")
+    description = serializers.CharField(
+        required=False, help_text="Transfer description")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Bank Accounts'],
+        summary='List bank accounts',
+        description='Retrieve all bank accounts for the authenticated user.',
+        parameters=[
+            OpenApiParameter(
+                name='type', description='Filter by account type (current, savings, isa, credit)', required=False, type=str),
+            OpenApiParameter(
+                name='is_active', description='Filter by active status', required=False, type=bool),
+            OpenApiParameter(
+                name='currency', description='Filter by currency (GBP, USD, EUR)', required=False, type=str),
+            OpenApiParameter(
+                name='min_balance', description='Filter by minimum balance', required=False, type=float),
+        ]
+    ),
+    create=extend_schema(
+        tags=['Bank Accounts'],
+        summary='Create bank account',
+        description='Create a new bank account for the authenticated user.'
+    ),
+    retrieve=extend_schema(
+        tags=['Bank Accounts'],
+        summary='Get bank account',
+        description='Retrieve a specific bank account by ID.'
+    ),
+    update=extend_schema(
+        tags=['Bank Accounts'],
+        summary='Update bank account',
+        description='Update all fields of a bank account.'
+    ),
+    partial_update=extend_schema(
+        tags=['Bank Accounts'],
+        summary='Partially update bank account',
+        description='Update specific fields of a bank account.'
+    ),
+    destroy=extend_schema(
+        tags=['Bank Accounts'],
+        summary='Delete bank account',
+        description='Delete a bank account. Cannot delete accounts with existing transactions.'
+    ),
+)
 class BankAccountViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing bank accounts.
+
+    Provides CRUD operations plus custom actions for account summary,
+    statements, transfers, and deactivation.
+    """
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering_fields = ['account_name', 'bank_name',
@@ -90,6 +149,11 @@ class BankAccountViewSet(viewsets.ModelViewSet):
 
         return super().destroy(request, *args, **kwargs)
 
+    @extend_schema(
+        tags=['Bank Accounts'],
+        summary='Get accounts summary',
+        description='Get a comprehensive summary of all active bank accounts including totals by currency and type, and recent activity.',
+    )
     @action(detail=False, methods=['get'])
     def summary(self, request):
         accounts = self.get_queryset().filter(is_active=True)
@@ -164,6 +228,15 @@ class BankAccountViewSet(viewsets.ModelViewSet):
             ]
         })
 
+    @extend_schema(
+        tags=['Bank Accounts'],
+        summary='Get account statement',
+        description='Get a detailed statement for a specific account with transactions and running balance.',
+        parameters=[
+            OpenApiParameter(
+                name='days', description='Number of days to include (default: 30)', required=False, type=int),
+        ]
+    )
     @action(detail=True, methods=['get'])
     def statement(self, request, pk=None):
         account = self.get_object()
@@ -233,6 +306,17 @@ class BankAccountViewSet(viewsets.ModelViewSet):
             'transactions': transaction_list
         })
 
+    @extend_schema(
+        tags=['Bank Accounts'],
+        summary='Transfer between accounts',
+        description='Transfer funds between two accounts of the same currency. Creates matching transaction records.',
+        request=TransferRequestSerializer,
+        responses={
+            201: OpenApiResponse(description='Transfer completed successfully'),
+            400: OpenApiResponse(description='Validation error or insufficient funds'),
+            404: OpenApiResponse(description='Target account not found'),
+        }
+    )
     @action(detail=True, methods=['post'])
     @db_transaction.atomic
     def transfer(self, request, pk=None):
@@ -340,6 +424,16 @@ class BankAccountViewSet(viewsets.ModelViewSet):
             }
         }, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        tags=['Bank Accounts'],
+        summary='Deactivate bank account',
+        description='Deactivate a bank account. The account must have a zero balance.',
+        request=None,
+        responses={
+            200: OpenApiResponse(description='Account deactivated successfully'),
+            400: OpenApiResponse(description='Cannot deactivate account with non-zero balance'),
+        }
+    )
     @action(detail=True, methods=['post'])
     def deactivate(self, request, pk=None):
         account = self.get_object()

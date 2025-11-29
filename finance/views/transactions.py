@@ -4,10 +4,11 @@ from django.core.cache import cache
 from django.db import transaction as db_transaction
 from django.db.models import Sum, Q, Count, Avg
 from django.utils import timezone
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse, inline_serializer
 from finance.models import Transaction, BankAccount, Category
 from finance.serializers import (
     TransactionSerializer,
@@ -16,7 +17,77 @@ from finance.serializers import (
 )
 
 
+# Request serializers for documentation
+class BulkCategorizeRequestSerializer(serializers.Serializer):
+    transaction_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        help_text="List of transaction IDs to categorize"
+    )
+    category_id = serializers.UUIDField(help_text="Target category ID")
+
+
+class DuplicateRequestSerializer(serializers.Serializer):
+    transaction_date = serializers.DateField(
+        required=False,
+        help_text="Date for the duplicated transaction (default: today)"
+    )
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Transactions'],
+        summary='List transactions',
+        description='Retrieve all transactions for the authenticated user with optional filtering.',
+        parameters=[
+            OpenApiParameter(
+                name='bank_account', description='Filter by bank account ID', required=False, type=str),
+            OpenApiParameter(
+                name='category', description='Filter by category ID', required=False, type=str),
+            OpenApiParameter(
+                name='type', description='Filter by transaction type (income, expense, transfer)', required=False, type=str),
+            OpenApiParameter(
+                name='date_from', description='Filter from date (YYYY-MM-DD)', required=False, type=str),
+            OpenApiParameter(
+                name='date_to', description='Filter to date (YYYY-MM-DD)', required=False, type=str),
+            OpenApiParameter(
+                name='min_amount', description='Filter by minimum absolute amount', required=False, type=float),
+            OpenApiParameter(
+                name='is_recurring', description='Filter by recurring status', required=False, type=bool),
+        ]
+    ),
+    create=extend_schema(
+        tags=['Transactions'],
+        summary='Create transaction',
+        description='Create a new transaction. Amount sign is auto-adjusted based on type.'
+    ),
+    retrieve=extend_schema(
+        tags=['Transactions'],
+        summary='Get transaction',
+        description='Retrieve a specific transaction by ID.'
+    ),
+    update=extend_schema(
+        tags=['Transactions'],
+        summary='Update transaction',
+        description='Update all fields of a transaction.'
+    ),
+    partial_update=extend_schema(
+        tags=['Transactions'],
+        summary='Partially update transaction',
+        description='Update specific fields of a transaction.'
+    ),
+    destroy=extend_schema(
+        tags=['Transactions'],
+        summary='Delete transaction',
+        description='Delete a transaction. Account balance will be reversed.'
+    ),
+)
 class TransactionViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing transactions.
+
+    Provides CRUD operations plus custom actions for statistics,
+    monthly summaries, bulk categorization, and duplication.
+    """
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering_fields = ['transaction_date', 'transaction_amount', 'created_at']
@@ -107,6 +178,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         return super().destroy(request, *args, **kwargs)
 
+    @extend_schema(
+        tags=['Transactions'],
+        summary='Get transaction statistics',
+        description='Get detailed statistics including income/expense summaries, category breakdown, and top expenses. Results are cached for 5 minutes.',
+        parameters=[
+            OpenApiParameter(
+                name='date_from', description='Start date (YYYY-MM-DD)', required=False, type=str),
+            OpenApiParameter(
+                name='date_to', description='End date (YYYY-MM-DD)', required=False, type=str),
+        ]
+    )
     @action(detail=False, methods=['get'])
     def statistics(self, request):
         cache_key = f'user_statistics_{request.user.id}'
@@ -232,6 +314,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         return Response(statistics)
 
+    @extend_schema(
+        tags=['Transactions'],
+        summary='Get monthly summary',
+        description='Get a detailed monthly summary with daily breakdown of income and expenses.',
+        parameters=[
+            OpenApiParameter(
+                name='year', description='Year (default: current year)', required=False, type=int),
+            OpenApiParameter(
+                name='month', description='Month 1-12 (default: current month)', required=False, type=int),
+        ]
+    )
     @action(detail=False, methods=['get'])
     def monthly_summary(self, request):
         year = request.query_params.get('year', timezone.now().year)
@@ -301,6 +394,17 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
         return Response(summary)
 
+    @extend_schema(
+        tags=['Transactions'],
+        summary='Bulk categorize transactions',
+        description='Assign a category to multiple transactions at once.',
+        request=BulkCategorizeRequestSerializer,
+        responses={
+            200: OpenApiResponse(description='Transactions categorized successfully'),
+            400: OpenApiResponse(description='Validation error or incompatible transaction types'),
+            404: OpenApiResponse(description='Category not found'),
+        }
+    )
     @action(detail=False, methods=['post'])
     @db_transaction.atomic
     def bulk_categorize(self, request):
@@ -362,6 +466,16 @@ class TransactionViewSet(viewsets.ModelViewSet):
             }
         })
 
+    @extend_schema(
+        tags=['Transactions'],
+        summary='Duplicate transaction',
+        description='Create a copy of an existing transaction with a new date.',
+        request=DuplicateRequestSerializer,
+        responses={
+            201: TransactionSerializer,
+            400: OpenApiResponse(description='Invalid date format'),
+        }
+    )
     @action(detail=True, methods=['post'])
     @db_transaction.atomic
     def duplicate(self, request, pk=None):

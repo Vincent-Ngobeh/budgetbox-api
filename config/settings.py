@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
+    'drf_spectacular',
     'finance',
 ]
 
@@ -113,6 +114,50 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'BudgetBox API',
+    'DESCRIPTION': '''
+## Personal Finance Tracking API
+
+BudgetBox API is a comprehensive personal finance management system that helps users track their income, expenses, budgets, and bank accounts.
+
+### Features
+- **Authentication**: Token-based authentication for secure API access
+- **Bank Accounts**: Manage multiple bank accounts with different currencies (GBP, USD, EUR)
+- **Transactions**: Track income and expenses with categories
+- **Categories**: Organize transactions into custom income/expense categories
+- **Budgets**: Set and monitor spending budgets with progress tracking
+
+### Authentication
+All endpoints (except registration and login) require authentication via Token.
+Include the token in the Authorization header:
+```
+Authorization: Token your-token-here
+```
+    ''',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': r'/api/',
+    'TAGS': [
+        {'name': 'Authentication',
+            'description': 'User registration, login, logout, and profile management'},
+        {'name': 'Bank Accounts',
+            'description': 'Manage bank accounts, transfers, and view statements'},
+        {'name': 'Transactions', 'description': 'Track income and expense transactions'},
+        {'name': 'Categories', 'description': 'Manage income and expense categories'},
+        {'name': 'Budgets', 'description': 'Set and monitor spending budgets'},
+    ],
+    'CONTACT': {
+        'name': 'BudgetBox Support',
+    },
+    'LICENSE': {
+        'name': 'MIT License',
+    },
 }
 
 

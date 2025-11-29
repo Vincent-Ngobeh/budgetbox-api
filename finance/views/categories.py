@@ -2,15 +2,68 @@ from datetime import timedelta
 from decimal import Decimal
 from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
-from rest_framework import viewsets, status, filters
+from rest_framework import viewsets, status, filters, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse
 from finance.models import Category, Transaction
 from finance.serializers import CategorySerializer
 
 
+# Request serializers for documentation
+class ReassignTransactionsRequestSerializer(serializers.Serializer):
+    target_category_id = serializers.UUIDField(
+        help_text="ID of the category to reassign transactions to")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=['Categories'],
+        summary='List categories',
+        description='Retrieve all categories for the authenticated user.',
+        parameters=[
+            OpenApiParameter(
+                name='type', description='Filter by category type (income, expense)', required=False, type=str),
+            OpenApiParameter(
+                name='is_active', description='Filter by active status', required=False, type=bool),
+            OpenApiParameter(
+                name='has_transactions', description='Filter by whether category has transactions', required=False, type=bool),
+        ]
+    ),
+    create=extend_schema(
+        tags=['Categories'],
+        summary='Create category',
+        description='Create a new income or expense category.'
+    ),
+    retrieve=extend_schema(
+        tags=['Categories'],
+        summary='Get category',
+        description='Retrieve a specific category by ID.'
+    ),
+    update=extend_schema(
+        tags=['Categories'],
+        summary='Update category',
+        description='Update all fields of a category.'
+    ),
+    partial_update=extend_schema(
+        tags=['Categories'],
+        summary='Partially update category',
+        description='Update specific fields of a category.'
+    ),
+    destroy=extend_schema(
+        tags=['Categories'],
+        summary='Delete category',
+        description='Delete a category. Cannot delete default categories or those with transactions.'
+    ),
+)
 class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing income and expense categories.
+
+    Provides CRUD operations plus custom actions for usage statistics,
+    setting defaults, and reassigning transactions.
+    """
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
@@ -68,6 +121,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
         return super().destroy(request, *args, **kwargs)
 
+    @extend_schema(
+        tags=['Categories'],
+        summary='Get category usage',
+        description='Get usage statistics for a category including monthly breakdown and recent transactions.',
+        parameters=[
+            OpenApiParameter(
+                name='days', description='Number of days to analyze (default: 30)', required=False, type=int),
+        ]
+    )
     @action(detail=True, methods=['get'])
     def usage(self, request, pk=None):
         category = self.get_object()
@@ -141,6 +203,15 @@ class CategoryViewSet(viewsets.ModelViewSet):
             ]
         })
 
+    @extend_schema(
+        tags=['Categories'],
+        summary='Create default categories',
+        description='Create a set of default income and expense categories for the user.',
+        request=None,
+        responses={
+            200: OpenApiResponse(description='Default categories created or already exist'),
+        }
+    )
     @action(detail=False, methods=['post'])
     def set_defaults(self, request):
         if Category.objects.filter(user=request.user, is_default=True).exists():
@@ -184,6 +255,17 @@ class CategoryViewSet(viewsets.ModelViewSet):
             ).data
         })
 
+    @extend_schema(
+        tags=['Categories'],
+        summary='Reassign transactions',
+        description='Move all transactions from this category to another category of the same type. The source category will be deactivated.',
+        request=ReassignTransactionsRequestSerializer,
+        responses={
+            200: OpenApiResponse(description='Transactions reassigned successfully'),
+            400: OpenApiResponse(description='Validation error or type mismatch'),
+            404: OpenApiResponse(description='Target category not found'),
+        }
+    )
     @action(detail=True, methods=['post'])
     def reassign_transactions(self, request, pk=None):
         source_category = self.get_object()
