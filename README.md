@@ -1,82 +1,287 @@
-# BudgetBox API 💰
+# BudgetBox API
 
-A robust Personal Finance Management REST API built with Django REST Framework, designed to help users track expenses, manage budgets, and gain insights into their financial health.
+A production-ready Personal Finance Management REST API built with Django REST Framework. This API provides comprehensive financial tracking capabilities including multi-account management, transaction tracking, budget monitoring, and intelligent spending analytics.
 
-**🎯 Full-Stack Application**: This API powers a complete finance management system with a [React frontend](https://github.com/Vincent-Ngobeh/budgetbox-frontend) providing an intuitive user interface.
+**Live Demo**: [https://budgetbox-api-ckwq.onrender.com](https://budgetbox-api-ckwq.onrender.com)
 
-## 🌟 Features
+**Frontend Application**: [https://budgetbox-frontend.vercel.app](https://budgetbox-frontend.vercel.app)
+
+**Frontend Repository**: [https://github.com/Vincent-Ngobeh/budgetbox-frontend](https://github.com/Vincent-Ngobeh/budgetbox-frontend)
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [API Documentation](#api-documentation)
+- [Database Schema](#database-schema)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Running Tests](#running-tests)
+- [Deployment](#deployment)
+- [API Reference](#api-reference)
+- [Security](#security)
+- [Performance](#performance)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
+
+---
+
+## Features
 
 ### Core Functionality
 
-- **Multi-Account Management**: Support for various account types (Current, Savings, ISA, Credit)
-- **Transaction Tracking**: Comprehensive income/expense tracking with categorization
-- **Budget Management**: Create and monitor budgets with real-time progress tracking
-- **Financial Analytics**: Detailed statistics and spending insights
-- **Multi-Currency Support**: GBP, USD, and EUR support
+- **Multi-Account Management**: Support for Current, Savings, and Credit Card accounts with multi-currency support (GBP, USD, EUR)
+- **Transaction Tracking**: Complete income/expense tracking with categorization, search, and filtering
+- **Budget Management**: Create, monitor, and track spending budgets with real-time progress
+- **Category Organization**: Custom income and expense categories with default templates
+- **Financial Analytics**: Detailed statistics, spending insights, and monthly summaries
 
 ### Advanced Features
 
-- **Smart Categorization**: Automatic transaction categorization with bulk operations
-- **Budget Recommendations**: AI-powered budget suggestions based on spending patterns
-- **Account Transfers**: Secure money transfers between accounts
-- **Recurring Transactions**: Support for recurring income/expenses
-- **Financial Reports**: Monthly summaries, account statements, and spending breakdowns
+- **Account Transfers**: Secure money transfers between accounts with automatic balance updates
+- **Budget Recommendations**: Smart suggestions based on spending patterns and historical data
+- **Bulk Operations**: Bulk categorization of transactions for efficient management
+- **Transaction Duplication**: Quick duplication of recurring transactions
+- **Budget Cloning**: Clone budgets for next period or custom date ranges
+- **Account Statements**: Detailed statements with running balance calculations
+- **Spending Pace Analysis**: Track if you're ahead or behind your budget targets
+- **Savings Opportunities**: AI-powered identification of potential savings
 
-## 🚀 Tech Stack
+### User Management
 
-### Backend
+- **Token Authentication**: Secure token-based API authentication
+- **User Profiles**: Complete profile management with financial summaries
+- **Password Management**: Secure password change with token rotation
+- **Default Categories**: Automatic creation of default categories on registration
 
-- **Framework**: Django 5.2.5 + Django REST Framework 3.16.1
-- **Database**: PostgreSQL with optimized queries
-- **Authentication**: Token-based authentication
-- **Testing**: Pytest with 92% code coverage
-- **Security**: CORS headers, environment-based configuration
-- **Performance**: Redis caching, database query optimization
+---
 
-### Frontend ([Repository](https://github.com/Vincent-Ngobeh/budgetbox-frontend))
+## Tech Stack
 
-- **Framework**: React 18.2.0 with Material-UI
-- **State Management**: React Context API
-- **Routing**: React Router v6
-- **Data Visualization**: Recharts
-- **HTTP Client**: Axios
+| Category           | Technology                        |
+| ------------------ | --------------------------------- |
+| **Framework**      | Django 5.2.5                      |
+| **API**            | Django REST Framework 3.16.1      |
+| **Database**       | PostgreSQL                        |
+| **Authentication** | Token Authentication              |
+| **Documentation**  | drf-spectacular (OpenAPI 3.0)     |
+| **Testing**        | Pytest, pytest-django, pytest-cov |
+| **Test Data**      | Factory Boy, Faker                |
+| **CORS**           | django-cors-headers               |
+| **Static Files**   | WhiteNoise                        |
+| **WSGI Server**    | Gunicorn                          |
+| **Deployment**     | Render                            |
 
-## 📋 Prerequisites
+### Dependencies
+
+```
+Django==5.2.5
+djangorestframework==3.16.1
+drf-spectacular==0.28.0
+django-cors-headers==4.7.0
+psycopg2-binary==2.9.10
+python-decouple==3.8
+gunicorn==23.0.0
+whitenoise==6.8.2
+dj-database-url==2.3.0
+pytest==8.4.1
+pytest-django==4.11.1
+pytest-cov==6.2.1
+factory_boy==3.3.3
+Faker==37.5.3
+```
+
+---
+
+## Architecture
+
+```
+budgetbox-api/
+├── config/                    # Project configuration
+│   ├── settings.py           # Django settings
+│   ├── urls.py               # Root URL configuration
+│   └── wsgi.py               # WSGI application
+├── finance/                   # Main application
+│   ├── models.py             # Database models
+│   ├── serializers.py        # DRF serializers
+│   ├── views/                # ViewSets and API views
+│   │   ├── auth.py           # Authentication endpoints
+│   │   ├── bank_accounts.py  # Account management
+│   │   ├── transactions.py   # Transaction operations
+│   │   ├── categories.py     # Category management
+│   │   └── budgets.py        # Budget tracking
+│   ├── tests/                # Test suite
+│   │   ├── test_authentication.py
+│   │   ├── test_accounts.py
+│   │   ├── test_transactions.py
+│   │   ├── test_categories.py
+│   │   ├── test_budgets.py
+│   │   ├── test_permissions.py
+│   │   ├── test_business_logic.py
+│   │   └── test_api_endpoints.py
+│   └── urls.py               # App URL patterns
+├── docs/                      # Documentation
+│   └── database/             # ERD diagrams
+├── conftest.py               # Pytest fixtures
+├── pytest.ini                # Pytest configuration
+├── requirements.txt          # Python dependencies
+├── render.yaml               # Render deployment config
+└── build.sh                  # Build script
+```
+
+---
+
+## API Documentation
+
+### Interactive Documentation
+
+The API provides interactive documentation via Swagger UI and ReDoc:
+
+| Documentation      | URL                                                                 |
+| ------------------ | ------------------------------------------------------------------- |
+| **Swagger UI**     | [/api/docs/](https://budgetbox-api-ckwq.onrender.com/api/docs/)     |
+| **ReDoc**          | [/api/redoc/](https://budgetbox-api-ckwq.onrender.com/api/redoc/)   |
+| **OpenAPI Schema** | [/api/schema/](https://budgetbox-api-ckwq.onrender.com/api/schema/) |
+| **API Root**       | [/api/](https://budgetbox-api-ckwq.onrender.com/api/)               |
+
+### Postman Collection
+
+A complete Postman collection is available for testing:
+[View Postman Collection](https://vincent-ngobeh-3663782.postman.co/workspace/Vincent-Ngobeh's-Workspace~952f4852-14ea-40b0-83fd-86c3984588b3/collection/48118241-9769c948-963a-40f1-abb1-b28ebe48aba1)
+
+---
+
+## Database Schema
+
+### Entity Relationship Diagram
+
+![ERD Diagram](docs/database/PersonalFinanceTrackerERDiagram.png)
+
+### Models
+
+#### User (Django Built-in)
+
+Standard Django User model for authentication.
+
+#### Category
+
+```python
+Fields:
+- category_id: UUID (Primary Key)
+- user: ForeignKey -> User
+- category_name: CharField (max 50)
+- category_type: CharField ['income', 'expense']
+- is_default: Boolean
+- is_active: Boolean
+- created_at: DateTime
+- updated_at: DateTime
+
+Constraints:
+- unique_together: [user, category_name, category_type]
+```
+
+#### BankAccount
+
+```python
+Fields:
+- bank_account_id: UUID (Primary Key)
+- user: ForeignKey -> User
+- account_name: CharField (max 100)
+- account_type: CharField ['current', 'savings', 'credit']
+- bank_name: CharField (max 100)
+- account_number_masked: CharField (format: ****1234)
+- currency: CharField ['GBP', 'USD', 'EUR']
+- current_balance: Decimal (max 9,999,999.99, min -10,000.00)
+- is_active: Boolean
+- created_at: DateTime
+- updated_at: DateTime
+```
+
+#### Transaction
+
+```python
+Fields:
+- transaction_id: UUID (Primary Key)
+- user: ForeignKey -> User
+- bank_account: ForeignKey -> BankAccount
+- category: ForeignKey -> Category (nullable)
+- transaction_description: CharField (max 255)
+- transaction_type: CharField ['income', 'expense', 'transfer']
+- transaction_amount: Decimal (max 999,999.99)
+- transaction_date: Date
+- transaction_note: TextField (optional)
+- reference_number: CharField (optional)
+- is_recurring: Boolean
+- created_at: DateTime
+- updated_at: DateTime
+
+Indexes:
+- [user, transaction_date]
+- [user, transaction_type]
+- [bank_account, transaction_date]
+```
+
+#### Budget
+
+```python
+Fields:
+- budget_id: UUID (Primary Key)
+- user: ForeignKey -> User
+- category: ForeignKey -> Category
+- budget_name: CharField (max 100)
+- budget_amount: Decimal
+- period_type: CharField ['weekly', 'monthly', 'quarterly', 'yearly']
+- start_date: Date
+- end_date: Date
+- is_active: Boolean
+- created_at: DateTime
+- updated_at: DateTime
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
 
 - Python 3.10+
-- PostgreSQL 12+
+- PostgreSQL 12+ (or SQLite for development)
 - pip or pipenv
 
-## 🛠️ Installation
+### Installation
 
-### 1. Clone the Repository
+#### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Vincent-Ngobeh/budgetbox-api.git
 cd budgetbox-api
 ```
 
-### 2. Set Up Virtual Environment
+#### 2. Create Virtual Environment
 
 ```bash
 # Windows
 python -m venv venv
 venv\Scripts\activate
 
-# Linux/Mac
+# Linux/macOS
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 3. Install Dependencies
+#### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
+#### 4. Configure Environment Variables
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the project root:
 
 ```env
 SECRET_KEY=your-secret-key-here
@@ -86,12 +291,14 @@ DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 DB_HOST=localhost
 DB_PORT=5432
+ALLOWED_HOSTS=localhost,127.0.0.1
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-### 5. Set Up Database
+#### 5. Set Up Database
 
 ```bash
-# Create PostgreSQL database
+# Create PostgreSQL database (if using PostgreSQL)
 createdb budgetbox_db
 
 # Run migrations
@@ -101,19 +308,13 @@ python manage.py migrate
 python manage.py createsuperuser
 ```
 
-### 6. Load Sample Data (Optional)
+#### 6. Load Sample Data (Optional)
 
 ```bash
-# Generate UK-specific demo data with realistic transactions
-python manage.py create_uk_data --user testuser --accounts 3 --transactions 50
-
-# Available test users (password: testpass123):
-# - john_smith
-# - sarah_jones
-# - testuser
+python manage.py seed_user_data --username testuser --password testpass123
 ```
 
-### 7. Run the Server
+#### 7. Run Development Server
 
 ```bash
 python manage.py runserver
@@ -121,185 +322,257 @@ python manage.py runserver
 
 The API will be available at `http://localhost:8000/`
 
-### 8. Run the Frontend (Optional)
+---
+
+## Environment Variables
+
+| Variable               | Description                              | Default                       |
+| ---------------------- | ---------------------------------------- | ----------------------------- |
+| `SECRET_KEY`           | Django secret key                        | Required                      |
+| `DEBUG`                | Debug mode                               | `False`                       |
+| `DATABASE_URL`         | Database connection URL (for production) | -                             |
+| `DB_NAME`              | Database name                            | Required (if no DATABASE_URL) |
+| `DB_USER`              | Database user                            | Required (if no DATABASE_URL) |
+| `DB_PASSWORD`          | Database password                        | Required (if no DATABASE_URL) |
+| `DB_HOST`              | Database host                            | `localhost`                   |
+| `DB_PORT`              | Database port                            | `5432`                        |
+| `ALLOWED_HOSTS`        | Comma-separated allowed hosts            | `localhost,127.0.0.1`         |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated CORS origins             | `http://localhost:3000`       |
+
+---
+
+## Running Tests
+
+### Run All Tests
 
 ```bash
-# In a new terminal, clone and run the frontend
-git clone https://github.com/Vincent-Ngobeh/budgetbox-frontend.git
-cd budgetbox-frontend
-npm install
-npm start
-```
-
-The frontend will be available at `http://localhost:3000/`
-
-## 📚 API Documentation
-
-### Interactive Testing
-
-- **Postman Collection**: [View Collection](https://vincent-ngobeh-3663782.postman.co/workspace/Vincent-Ngobeh's-Workspace~952f4852-14ea-40b0-83fd-86c3984588b3/collection/48118241-9769c948-963a-40f1-abb1-b28ebe48aba1)
-- **Environment Variables**: Pre-configured for local development
-- **Sample Requests**: Complete examples for all endpoints
-
-### Authentication Endpoints
-
-| Method | Endpoint                    | Description       |
-| ------ | --------------------------- | ----------------- |
-| POST   | `/api/auth/register/`       | Register new user |
-| POST   | `/api/auth/login/`          | Login user        |
-| POST   | `/api/auth/logout/`         | Logout user       |
-| GET    | `/api/auth/profile/`        | Get user profile  |
-| PATCH  | `/api/auth/profile/update/` | Update profile    |
-
-### Core Endpoints
-
-#### Bank Accounts
-
-| Method | Endpoint                        | Description               |
-| ------ | ------------------------------- | ------------------------- |
-| GET    | `/api/accounts/`                | List all accounts         |
-| POST   | `/api/accounts/`                | Create new account        |
-| GET    | `/api/accounts/{id}/`           | Get account details       |
-| PUT    | `/api/accounts/{id}/`           | Update account            |
-| DELETE | `/api/accounts/{id}/`           | Delete account            |
-| GET    | `/api/accounts/summary/`        | Get accounts summary      |
-| GET    | `/api/accounts/{id}/statement/` | Get account statement     |
-| POST   | `/api/accounts/{id}/transfer/`  | Transfer between accounts |
-
-#### Transactions
-
-| Method | Endpoint                             | Description             |
-| ------ | ------------------------------------ | ----------------------- |
-| GET    | `/api/transactions/`                 | List transactions       |
-| POST   | `/api/transactions/`                 | Create transaction      |
-| GET    | `/api/transactions/{id}/`            | Get transaction details |
-| PUT    | `/api/transactions/{id}/`            | Update transaction      |
-| DELETE | `/api/transactions/{id}/`            | Delete transaction      |
-| GET    | `/api/transactions/statistics/`      | Get statistics          |
-| GET    | `/api/transactions/monthly_summary/` | Monthly summary         |
-| POST   | `/api/transactions/bulk_categorize/` | Bulk categorize         |
-
-#### Categories
-
-| Method | Endpoint                        | Description               |
-| ------ | ------------------------------- | ------------------------- |
-| GET    | `/api/categories/`              | List categories           |
-| POST   | `/api/categories/`              | Create category           |
-| GET    | `/api/categories/{id}/usage/`   | Get usage stats           |
-| POST   | `/api/categories/set_defaults/` | Create default categories |
-
-#### Budgets
-
-| Method | Endpoint                        | Description          |
-| ------ | ------------------------------- | -------------------- |
-| GET    | `/api/budgets/`                 | List budgets         |
-| POST   | `/api/budgets/`                 | Create budget        |
-| GET    | `/api/budgets/{id}/progress/`   | Get budget progress  |
-| GET    | `/api/budgets/overview/`        | Get budgets overview |
-| GET    | `/api/budgets/recommendations/` | Get recommendations  |
-| POST   | `/api/budgets/{id}/clone/`      | Clone budget         |
-
-### Query Parameters
-
-#### Filtering Transactions
-
-```
-GET /api/transactions/?type=expense&date_from=2024-01-01&date_to=2024-12-31&min_amount=100
-```
-
-#### Filtering Accounts
-
-```
-GET /api/accounts/?type=current&is_active=true&currency=GBP
-```
-
-## 🧪 Testing
-
-### Run Tests
-
-```bash
-# Run all tests
 pytest
+```
 
-# Run with coverage report
+### Run with Coverage Report
+
+```bash
 pytest --cov=finance --cov-report=html
+```
 
-# View coverage report
-# Open htmlcov/index.html in browser
+### Run Specific Test File
 
-# Run specific test file
+```bash
 pytest finance/tests/test_transactions.py
+```
 
-# Run with verbose output
+### Run with Verbose Output
+
+```bash
 pytest -v
 ```
 
-### Test Coverage
+### Test Categories
 
-The project maintains comprehensive test coverage including:
+| Test File                | Description                      |
+| ------------------------ | -------------------------------- |
+| `test_authentication.py` | User registration, login, logout |
+| `test_accounts.py`       | Bank account CRUD and transfers  |
+| `test_transactions.py`   | Transaction operations           |
+| `test_categories.py`     | Category management              |
+| `test_budgets.py`        | Budget tracking and actions      |
+| `test_permissions.py`    | User data isolation              |
+| `test_business_logic.py` | Business rules validation        |
+| `test_api_endpoints.py`  | API accessibility                |
 
-- Unit tests for models and serializers
-- Integration tests for API endpoints
-- Business logic validation tests
-- Permission and authentication tests
-- Edge case handling
+---
 
-**Current coverage: 92%**
+## Deployment
 
-### Testing with Sample Data
+### Render Deployment
 
-```bash
-# Create test user with realistic UK data
-python manage.py create_uk_data --user testuser --transactions 100
+The API is configured for deployment on Render with the included `render.yaml`:
 
-# Test credentials
-# Username: testuser
-# Password: testpass123
+```yaml
+databases:
+  - name: budgetbox-db
+    databaseName: budgetbox
+    user: budgetbox_user
+    plan: free
+
+services:
+  - type: web
+    name: budgetbox-api
+    runtime: python
+    plan: free
+    buildCommand: ./build.sh
+    startCommand: gunicorn config.wsgi:application
 ```
 
-## 🔒 Security Features
+### Manual Deployment Steps
 
-- **Token Authentication**: Secure API access with token-based auth
-- **User Isolation**: Complete data isolation between users
-- **Input Validation**: Comprehensive validation on all inputs
-- **SQL Injection Protection**: Django ORM prevents SQL injection
-- **CORS Configuration**: Configurable CORS headers for frontend integration
-- **Environment Variables**: Sensitive data stored in environment variables
-- **Permission Classes**: Role-based access control
+1. Set environment variables on your hosting platform
+2. Run migrations: `python manage.py migrate`
+3. Collect static files: `python manage.py collectstatic --noinput`
+4. Start with Gunicorn: `gunicorn config.wsgi:application`
 
-## 📊 Database Schema
+---
 
-The API uses a well-structured PostgreSQL database with the following main entities:
+## API Reference
 
-- **Users**: Authentication and user profiles
-- **BankAccounts**: Multiple account types with currency support
-- **Categories**: Income/expense categorization
-- **Transactions**: Financial transactions with full audit trail
-- **Budgets**: Budget planning and tracking
+### Authentication Endpoints
 
-See the [Entity Relationship Diagram](docs/database/PersonalFinanceTrackerERDiagram.png) for detailed schema.
+| Method  | Endpoint                     | Description                             | Auth |
+| ------- | ---------------------------- | --------------------------------------- | ---- |
+| `POST`  | `/api/auth/register/`        | Register new user                       | No   |
+| `POST`  | `/api/auth/login/`           | Login and get token                     | No   |
+| `POST`  | `/api/auth/logout/`          | Logout and delete token                 | Yes  |
+| `GET`   | `/api/auth/profile/`         | Get user profile with financial summary | Yes  |
+| `PATCH` | `/api/auth/profile/update/`  | Update user profile                     | Yes  |
+| `POST`  | `/api/auth/change-password/` | Change password                         | Yes  |
 
-## 🚢 Deployment
+### Bank Accounts Endpoints
 
-### Docker Support (Coming Soon)
+| Method   | Endpoint                         | Description               |
+| -------- | -------------------------------- | ------------------------- |
+| `GET`    | `/api/accounts/`                 | List all accounts         |
+| `POST`   | `/api/accounts/`                 | Create new account        |
+| `GET`    | `/api/accounts/{id}/`            | Get account details       |
+| `PUT`    | `/api/accounts/{id}/`            | Update account            |
+| `PATCH`  | `/api/accounts/{id}/`            | Partial update account    |
+| `DELETE` | `/api/accounts/{id}/`            | Delete account            |
+| `GET`    | `/api/accounts/summary/`         | Get accounts summary      |
+| `GET`    | `/api/accounts/{id}/statement/`  | Get account statement     |
+| `POST`   | `/api/accounts/{id}/transfer/`   | Transfer between accounts |
+| `POST`   | `/api/accounts/{id}/deactivate/` | Deactivate account        |
 
-```dockerfile
-# Dockerfile and docker-compose.yml to be added
-```
+**Query Parameters:**
 
-### Production Considerations
+- `type`: Filter by account type (current, savings, credit)
+- `is_active`: Filter by active status
+- `currency`: Filter by currency (GBP, USD, EUR)
+- `min_balance`: Filter by minimum balance
 
-- Use `gunicorn` or `uwsgi` as WSGI server
-- Set `DEBUG=False` in production
-- Configure proper database connection pooling
-- Implement Redis for caching
-- Use environment-specific settings files
-- Set up proper logging
-- Configure HTTPS/SSL
+### Transactions Endpoints
 
-## 🤝 Contributing
+| Method   | Endpoint                             | Description                  |
+| -------- | ------------------------------------ | ---------------------------- |
+| `GET`    | `/api/transactions/`                 | List transactions            |
+| `POST`   | `/api/transactions/`                 | Create transaction           |
+| `GET`    | `/api/transactions/{id}/`            | Get transaction details      |
+| `PUT`    | `/api/transactions/{id}/`            | Update transaction           |
+| `PATCH`  | `/api/transactions/{id}/`            | Partial update transaction   |
+| `DELETE` | `/api/transactions/{id}/`            | Delete transaction           |
+| `GET`    | `/api/transactions/statistics/`      | Get spending statistics      |
+| `GET`    | `/api/transactions/monthly_summary/` | Get monthly summary          |
+| `POST`   | `/api/transactions/bulk_categorize/` | Bulk categorize transactions |
+| `POST`   | `/api/transactions/{id}/duplicate/`  | Duplicate transaction        |
 
-This is a portfolio project, but suggestions and feedback are welcome!
+**Query Parameters:**
+
+- `bank_account`: Filter by account ID
+- `category`: Filter by category ID
+- `type`: Filter by type (income, expense, transfer)
+- `date_from`: Start date (YYYY-MM-DD)
+- `date_to`: End date (YYYY-MM-DD)
+- `min_amount`: Minimum absolute amount
+- `is_recurring`: Filter recurring transactions
+
+### Categories Endpoints
+
+| Method   | Endpoint                                      | Description               |
+| -------- | --------------------------------------------- | ------------------------- |
+| `GET`    | `/api/categories/`                            | List categories           |
+| `POST`   | `/api/categories/`                            | Create category           |
+| `GET`    | `/api/categories/{id}/`                       | Get category details      |
+| `PUT`    | `/api/categories/{id}/`                       | Update category           |
+| `PATCH`  | `/api/categories/{id}/`                       | Partial update category   |
+| `DELETE` | `/api/categories/{id}/`                       | Delete category           |
+| `GET`    | `/api/categories/{id}/usage/`                 | Get category usage stats  |
+| `POST`   | `/api/categories/set_defaults/`               | Create default categories |
+| `POST`   | `/api/categories/{id}/reassign_transactions/` | Reassign transactions     |
+
+**Query Parameters:**
+
+- `type`: Filter by type (income, expense)
+- `is_active`: Filter by active status
+- `has_transactions`: Filter by transaction presence
+
+### Budgets Endpoints
+
+| Method   | Endpoint                        | Description                |
+| -------- | ------------------------------- | -------------------------- |
+| `GET`    | `/api/budgets/`                 | List budgets               |
+| `POST`   | `/api/budgets/`                 | Create budget              |
+| `GET`    | `/api/budgets/{id}/`            | Get budget details         |
+| `PUT`    | `/api/budgets/{id}/`            | Update budget              |
+| `PATCH`  | `/api/budgets/{id}/`            | Partial update budget      |
+| `DELETE` | `/api/budgets/{id}/`            | Delete budget              |
+| `GET`    | `/api/budgets/{id}/progress/`   | Get budget progress        |
+| `GET`    | `/api/budgets/overview/`        | Get budgets overview       |
+| `GET`    | `/api/budgets/recommendations/` | Get budget recommendations |
+| `POST`   | `/api/budgets/{id}/clone/`      | Clone budget               |
+| `POST`   | `/api/budgets/{id}/deactivate/` | Deactivate budget          |
+| `POST`   | `/api/budgets/{id}/reactivate/` | Reactivate budget          |
+| `POST`   | `/api/budgets/bulk_create/`     | Bulk create from template  |
+
+**Query Parameters:**
+
+- `is_active`: Filter by active status
+- `period_type`: Filter by period (weekly, monthly, quarterly, yearly)
+- `category`: Filter by category ID
+- `current`: Show only current period budgets
+- `exceeded`: Show only exceeded budgets
+
+---
+
+## Security
+
+### Authentication
+
+- Token-based authentication using Django REST Framework's TokenAuthentication
+- Tokens are invalidated on password change
+- Secure password hashing with Django's built-in validators
+
+### Data Protection
+
+- Complete user data isolation - users can only access their own data
+- Input validation on all endpoints with comprehensive serializer validation
+- SQL injection protection via Django ORM
+- CORS configuration for controlled frontend access
+
+### Best Practices
+
+- Environment-based configuration for sensitive data
+- Debug mode disabled in production
+- HTTPS enforcement on production deployment
+- Masked account numbers (only last 4 digits stored)
+
+---
+
+## Performance
+
+### Database Optimization
+
+- Indexed fields for frequently queried columns
+- `select_related()` and `prefetch_related()` for efficient joins
+- Annotated querysets for computed fields
+
+### Caching
+
+- Statistics endpoint caching (5-minute TTL)
+- Cache invalidation on data modifications
+
+### Pagination
+
+- Default pagination (20 items per page)
+- Configurable page size
+
+### Query Efficiency
+
+- Optimized aggregation queries for statistics
+- Bulk update operations for category reassignment
+
+---
+
+## Contributing
+
+This is a portfolio project, but feedback and suggestions are welcome!
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
@@ -307,125 +580,31 @@ This is a portfolio project, but suggestions and feedback are welcome!
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📈 Performance Optimizations
+---
 
-- **Database Query Optimization**: Using `select_related()` and `prefetch_related()`
-- **Caching Strategy**: Redis caching for frequently accessed data
-- **Pagination**: Default pagination for list endpoints
-- **Bulk Operations**: Support for bulk create/update operations
-- **Indexed Fields**: Database indexes on frequently queried fields
-
-## 🎯 Project Highlights
-
-### Complete Full-Stack Application
-
-- **Backend**: Production-ready Django REST API with 92% test coverage
-- **Frontend**: React SPA with Material-UI and data visualization
-- **Testing**: Comprehensive test suite + Postman collection
-- **Documentation**: Detailed API docs and setup guides
-- **Sample Data**: Realistic UK financial data generator
-
-### Key Achievements
-
-- ✅ Clean architecture with separation of concerns
-- ✅ Comprehensive error handling and validation
-- ✅ Security best practices implementation
-- ✅ Optimized database queries with caching
-- ✅ Full CRUD operations for all resources
-- ✅ Advanced features (bulk operations, transfers, cloning)
-- ✅ Responsive frontend with modern UI/UX
-
-## 📝 API Usage Examples
-
-### Using Postman Collection
-
-Import the [Postman Collection](https://vincent-ngobeh-3663782.postman.co/workspace/Vincent-Ngobeh's-Workspace~952f4852-14ea-40b0-83fd-86c3984588b3/collection/48118241-9769c948-963a-40f1-abb1-b28ebe48aba1) for ready-to-use requests with:
-
-- Pre-configured environment variables
-- Authentication token management
-- Sample request bodies
-- Complete endpoint coverage
-
-### Quick Test Flow
-
-```bash
-# 1. Start the backend
-python manage.py runserver
-
-# 2. Create test data
-python manage.py create_uk_data --user john_smith
-
-# 3. Test via Postman or cURL
-# Login (returns auth token)
-curl -X POST http://localhost:8000/api/auth/login/ \
-  -H "Content-Type: application/json" \
-  -d '{"username": "john_smith", "password": "testpass123"}'
-
-# 4. Or use the frontend
-cd ../budgetbox-frontend
-npm start
-# Login with john_smith / testpass123
-```
-
-### Sample API Calls
-
-### Register a New User
-
-```bash
-curl -X POST http://localhost:8000/api/auth/register/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "johndoe",
-    "email": "john@example.com",
-    "password": "securepass123",
-    "first_name": "John",
-    "last_name": "Doe"
-  }'
-```
-
-### Create a Transaction
-
-```bash
-curl -X POST http://localhost:8000/api/transactions/ \
-  -H "Authorization: Token your-auth-token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bank_account": "account-uuid",
-    "category": "category-uuid",
-    "transaction_description": "Grocery Shopping",
-    "transaction_type": "expense",
-    "transaction_amount": "45.50",
-    "transaction_date": "2024-01-15"
-  }'
-```
-
-### Get Budget Progress
-
-```bash
-curl -X GET http://localhost:8000/api/budgets/{budget-id}/progress/ \
-  -H "Authorization: Token your-auth-token"
-```
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👤 Author
+---
+
+## Author
 
 **Vincent Sam Ngobeh**
 
 - GitHub: [@Vincent-Ngobeh](https://github.com/Vincent-Ngobeh)
 - LinkedIn: [Vincent Ngobeh](https://www.linkedin.com/in/vincent-ngobeh/)
 - Email: vincentngobeh@gmail.com
-- Portfolio: [View Live Projects](https://github.com/Vincent-Ngobeh)
-
-## 🙏 Acknowledgments
-
-- Django REST Framework documentation and community
-- PostgreSQL for robust database management
-- The Python community for excellent packages
-- Stack Overflow for problem-solving support
 
 ---
 
-**Note**: This is a portfolio project demonstrating proficiency in Django REST Framework, API design, database management, and software engineering best practices. The codebase emphasizes clean architecture, comprehensive testing, and production-ready features.
+## Acknowledgments
+
+- Django REST Framework for the excellent API framework
+- drf-spectacular for OpenAPI documentation
+- The Django community for comprehensive documentation
+- Render for hosting services
+
+---
+
+**Note**: This is a portfolio project demonstrating proficiency in Django REST Framework, API design, database management, testing, and software engineering best practices.
