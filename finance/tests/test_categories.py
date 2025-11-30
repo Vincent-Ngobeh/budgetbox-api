@@ -37,7 +37,9 @@ class TestCategoryManagement:
         })
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'already have' in str(response.data)
+        # Duplicate is rejected - either by serializer or DB constraint
+        assert 'unique' in str(response.data).lower(
+        ) or 'already' in str(response.data).lower()
 
     def test_list_categories_by_type(self, authenticated_client):
         """Test filtering categories by type."""

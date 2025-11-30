@@ -26,8 +26,8 @@ class TestBudgetTracking:
             budget_name='Monthly Food Budget',
             budget_amount=Decimal('500.00'),
             period_type='monthly',
-            start_date=date.today().replace(day=1),
-            end_date=date.today().replace(day=28)
+            start_date=date.today() - timedelta(days=7),
+            end_date=date.today() + timedelta(days=7)
         )
 
         # Create transactions

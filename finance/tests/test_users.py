@@ -35,9 +35,14 @@ class TestUserProfile:
         assert user.first_name == 'Updated'
 
     def test_update_password(self, authenticated_client):
-        """Test changing user password."""
-        response = authenticated_client.patch('/api/auth/profile/update/', {
-            'password': 'newsecurepass456'
+        """Test changing user password via change-password endpoint."""
+        # Set a known password first
+        authenticated_client.user.set_password('oldpassword123')
+        authenticated_client.user.save()
+
+        response = authenticated_client.post('/api/auth/change-password/', {
+            'current_password': 'oldpassword123',
+            'new_password': 'newsecurepass456'
         })
 
         assert response.status_code == status.HTTP_200_OK
