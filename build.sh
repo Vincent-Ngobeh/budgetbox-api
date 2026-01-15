@@ -13,4 +13,4 @@ python manage.py migrate
 
 # Seed demo user data (creates testuser with demo financial data)
 # Only seeds if testuser doesn't exist, safe to run multiple times
-python manage.py seed_user_data --user demo --password demo1234 --email demo@budgetbox.app
+python manage.py seed_user_data
