@@ -56,9 +56,55 @@ def api_root(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """
+    Health check endpoint - tests database connectivity and shows config status
+    """
+    import os
+    from django.db import connection
+    from django.contrib.auth.models import User
+
+    checks = {
+        'status': 'healthy',
+        'database': {'connected': False, 'error': None},
+        'tables': {'exist': False, 'error': None},
+        'environment': {
+            'DATABASE_URL': 'set' if os.environ.get('DATABASE_URL') else 'NOT SET',
+            'SECRET_KEY': 'set' if os.environ.get('SECRET_KEY') else 'NOT SET',
+            'DEBUG': os.environ.get('DEBUG', 'not set'),
+        }
+    }
+
+    # Test database connection
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+        checks['database']['connected'] = True
+    except Exception as e:
+        checks['database']['error'] = str(e)
+        checks['status'] = 'unhealthy'
+
+    # Test if tables exist
+    if checks['database']['connected']:
+        try:
+            user_count = User.objects.count()
+            checks['tables']['exist'] = True
+            checks['tables']['user_count'] = user_count
+        except Exception as e:
+            checks['tables']['error'] = str(e)
+            checks['status'] = 'unhealthy'
+
+    return Response(checks)
+
+
 urlpatterns = [
     # Admin site
     path('admin/', admin.site.urls),
+
+    # Health check (for debugging)
+    path('api/health/', health_check, name='health-check'),
 
     # API root
     path('', api_root, name='api-root'),

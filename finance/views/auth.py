@@ -73,48 +73,58 @@ class UpdateProfileRequestSerializer(serializers.Serializer):
 @permission_classes([AllowAny])
 def register_view(request):
     """Register a new user and create default categories."""
-    serializer = UserSerializer(data=request.data)
+    try:
+        serializer = UserSerializer(data=request.data)
 
-    if serializer.is_valid():
-        user = serializer.save()
+        if serializer.is_valid():
+            user = serializer.save()
 
-        token, created = Token.objects.get_or_create(user=user)
+            token, created = Token.objects.get_or_create(user=user)
 
-        from finance.models import Category
-        default_categories = [
-            ('Salary', 'income'),
-            ('Freelance', 'income'),
-            ('Other Income', 'income'),
-            ('Rent/Mortgage', 'expense'),
-            ('Groceries', 'expense'),
-            ('Transport', 'expense'),
-            ('Utilities', 'expense'),
-            ('Entertainment', 'expense'),
-            ('Other Expense', 'expense'),
-        ]
+            from finance.models import Category
+            default_categories = [
+                ('Salary', 'income'),
+                ('Freelance', 'income'),
+                ('Other Income', 'income'),
+                ('Rent/Mortgage', 'expense'),
+                ('Groceries', 'expense'),
+                ('Transport', 'expense'),
+                ('Utilities', 'expense'),
+                ('Entertainment', 'expense'),
+                ('Other Expense', 'expense'),
+            ]
 
-        for name, cat_type in default_categories:
-            Category.objects.get_or_create(
-                user=user,
-                category_name=name,
-                category_type=cat_type,
-                defaults={'is_default': True}
-            )
+            for name, cat_type in default_categories:
+                Category.objects.get_or_create(
+                    user=user,
+                    category_name=name,
+                    category_type=cat_type,
+                    defaults={'is_default': True}
+                )
 
+            return Response({
+                'message': 'User created successfully',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name
+                },
+                'token': token.key,
+                'categories_created': len(default_categories)
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Registration error: {str(e)}')
         return Response({
-            'message': 'User created successfully',
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name
-            },
-            'token': token.key,
-            'categories_created': len(default_categories)
-        }, status=status.HTTP_201_CREATED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            'error': 'An error occurred during registration. Please try again.',
+            'detail': str(e) if request.query_params.get('debug') else None
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
@@ -170,57 +180,66 @@ def login_view(request):
             'error': 'Username and password are required'
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    from django.contrib.auth import authenticate
-    user = authenticate(username=username, password=password)
+    try:
+        from django.contrib.auth import authenticate
+        user = authenticate(username=username, password=password)
 
-    if user:
-        if not user.is_active:
+        if user:
+            if not user.is_active:
+                return Response({
+                    'error': 'User account is disabled'
+                }, status=status.HTTP_403_FORBIDDEN)
+
+            token, created = Token.objects.get_or_create(user=user)
+
+            from django.utils import timezone
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+
+            from finance.models import BankAccount, Category, Transaction, Budget
+
+            accounts_count = BankAccount.objects.filter(
+                user=user, is_active=True).count()
+            categories_count = Category.objects.filter(
+                user=user, is_active=True).count()
+            recent_transactions = Transaction.objects.filter(user=user).count()
+            active_budgets = Budget.objects.filter(
+                user=user,
+                is_active=True,
+                start_date__lte=timezone.now().date(),
+                end_date__gte=timezone.now().date()
+            ).count()
+
             return Response({
-                'error': 'User account is disabled'
-            }, status=status.HTTP_403_FORBIDDEN)
-
-        token, created = Token.objects.get_or_create(user=user)
-
-        from django.utils import timezone
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
-
-        from finance.models import BankAccount, Category, Transaction, Budget
-
-        accounts_count = BankAccount.objects.filter(
-            user=user, is_active=True).count()
-        categories_count = Category.objects.filter(
-            user=user, is_active=True).count()
-        recent_transactions = Transaction.objects.filter(user=user).count()
-        active_budgets = Budget.objects.filter(
-            user=user,
-            is_active=True,
-            start_date__lte=timezone.now().date(),
-            end_date__gte=timezone.now().date()
-        ).count()
+                'message': 'Login successful',
+                'token': token.key,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'last_login': user.last_login.isoformat() if user.last_login else None
+                },
+                'summary': {
+                    'accounts': accounts_count,
+                    'categories': categories_count,
+                    'transactions': recent_transactions,
+                    'active_budgets': active_budgets
+                }
+            })
 
         return Response({
-            'message': 'Login successful',
-            'token': token.key,
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'first_name': user.first_name,
-                'last_name': user.last_name,
-                'last_login': user.last_login.isoformat() if user.last_login else None
-            },
-            'summary': {
-                'accounts': accounts_count,
-                'categories': categories_count,
-                'transactions': recent_transactions,
-                'active_budgets': active_budgets
-            }
-        })
+            'error': 'Invalid username or password'
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
-    return Response({
-        'error': 'Invalid username or password'
-    }, status=status.HTTP_401_UNAUTHORIZED)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Login error for user {username}: {str(e)}')
+        return Response({
+            'error': 'An error occurred during login. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @extend_schema(
